@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: #0d0d14;
+    color: #e8e8f0;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #2d2d42;
+    border-radius: 2px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3d3d5c;
+  }
+}
+
+@layer components {
+  .th-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #2d2d42 transparent;
+  }
+
+  /* LiveKit overrides */
+  [data-lk-theme] {
+    --lk-bg: #111118;
+    --lk-bg2: #1a1a26;
+    --lk-accent-bg: #7c5cfc;
+    --lk-text: #e8e8f0;
+    --lk-text2: #8888aa;
+    --lk-border: #1e1e2e;
+  }
+}
+
+/* Typing indicator dots */
+@keyframes blink {
+  0%, 80%, 100% { opacity: 0; }
+  40% { opacity: 1; }
+}
+.typing-dot:nth-child(1) { animation: blink 1.4s infinite 0s; }
+.typing-dot:nth-child(2) { animation: blink 1.4s infinite 0.2s; }
+.typing-dot:nth-child(3) { animation: blink 1.4s infinite 0.4s; }
