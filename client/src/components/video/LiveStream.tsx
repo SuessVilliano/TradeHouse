@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { RoomContext, RoomAudioRenderer, VideoTrack, useRemoteParticipants, useTracks } from '@livekit/components-react';
+import { RoomContext, RoomAudioRenderer, VideoTrack, useRemoteParticipants, useTracks, isTrackReference } from '@livekit/components-react';
+import type { TrackReference } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import { useLiveKit } from '../../hooks/useLiveKit';
 import type { Channel, AuthUser } from '../../types';
@@ -189,8 +190,8 @@ function StreamStage() {
     { source: Track.Source.Camera, withPlaceholder: false },
   ]);
 
-  const screenTrack = tracks.find(t => t.source === Track.Source.ScreenShare);
-  const cameraTrack = tracks.find(t => t.source === Track.Source.Camera);
+  const screenTrack = tracks.find(t => t.source === Track.Source.ScreenShare && isTrackReference(t)) as TrackReference | undefined;
+  const cameraTrack = tracks.find(t => t.source === Track.Source.Camera && isTrackReference(t)) as TrackReference | undefined;
   const mainTrack = screenTrack || cameraTrack;
 
   if (!mainTrack) {
