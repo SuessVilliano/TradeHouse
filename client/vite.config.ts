@@ -18,6 +18,6 @@ export default defineConfig({
     chunkSizeWarningLimit: 1600,
   },
   optimizeDeps: {
-    include: ['@livekit/client', '@livekit/components-react'],
+    include: ['livekit-client', '@livekit/components-react'],
   },
 });
