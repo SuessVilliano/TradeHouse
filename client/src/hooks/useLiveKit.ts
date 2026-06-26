@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { Room, RoomEvent, ConnectionState } from '@livekit/client';
+import { Room, RoomEvent, ConnectionState } from 'livekit-client';
 import { fetchLiveKitToken, LIVEKIT_URL } from '../lib/livekit';
 
 export interface UseLiveKitOptions {
@@ -79,6 +79,7 @@ export function useLiveKit(options: UseLiveKitOptions) {
   const raiseHand = useCallback(async () => {
     const next = !isHandRaised;
     setIsHandRaised(next);
+    // Send data message to all participants
     const encoder = new TextEncoder();
     await room.localParticipant.publishData(
       encoder.encode(JSON.stringify({ type: 'raise_hand', raised: next })),
