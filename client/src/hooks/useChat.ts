@@ -1,16 +1,18 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { useDemo } from '../lib/demoContext';
 import type { Message, Channel, AuthUser, SignalData } from '../types';
 
 export function useChat(channel: Channel, user: AuthUser) {
+  const { isDemoMode } = useDemo();
   const [messages, setMessages] = useState<Message[]>([]);
   const [pinnedMessage, setPinnedMessage] = useState<Message | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const realtimeChannel = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  // Fetch initial messages
   const fetchMessages = useCallback(async () => {
+    if (isDemoMode) return;
     setLoading(true);
     const res = await fetch(`/api/channels/${channel.id}/messages?limit=50`);
     if (res.ok) {
@@ -20,12 +22,17 @@ export function useChat(channel: Channel, user: AuthUser) {
       setPinnedMessage(pinned || null);
     }
     setLoading(false);
-  }, [channel.id]);
+  }, [channel.id, isDemoMode]);
 
   useEffect(() => {
+    if (isDemoMode) {
+      setMessages([]);
+      setLoading(false);
+      return;
+    }
+
     fetchMessages();
 
-    // Realtime subscription for new messages
     const rt = supabase
       .channel(`chat:${channel.id}`)
       .on('postgres_changes', {
@@ -34,7 +41,6 @@ export function useChat(channel: Channel, user: AuthUser) {
         table: 'messages',
         filter: `channel_id=eq.${channel.id}`,
       }, async (payload) => {
-        // Fetch the full message with joins
         const res = await fetch(`/api/channels/${channel.id}/messages?limit=1`);
         if (res.ok) {
           const { messages: newMsgs } = await res.json();
@@ -42,7 +48,6 @@ export function useChat(channel: Channel, user: AuthUser) {
             const newMsg = newMsgs[newMsgs.length - 1];
             if (newMsg.id === payload.new.id) {
               setMessages(prev => {
-                // Avoid duplicates
                 if (prev.some(m => m.id === newMsg.id)) return prev;
                 return [...prev, newMsg];
               });
@@ -66,20 +71,35 @@ export function useChat(channel: Channel, user: AuthUser) {
         schema: 'public',
         table: 'reactions',
       }, () => {
-        // Re-fetch messages when reactions change
         fetchMessages();
       })
       .subscribe();
 
     realtimeChannel.current = rt;
     return () => { supabase.removeChannel(rt); };
-  }, [channel.id, fetchMessages]);
+  }, [channel.id, fetchMessages, isDemoMode]);
 
   const sendMessage = useCallback(async (content: string, replyTo?: string, signalData?: SignalData) => {
     if (!content.trim() || sending) return;
-    setSending(true);
 
-    // Optimistic update
+    if (isDemoMode) {
+      const demoMsg: Message = {
+        id: `demo-${Date.now()}`,
+        channel_id: channel.id,
+        user_id: 'demo-user',
+        content,
+        reply_to: replyTo || null,
+        is_pinned: false,
+        signal_data: signalData || null,
+        created_at: new Date().toISOString(),
+        members: { username: 'DemoTrader', avatar_url: undefined, role: 'member' },
+        reactions: [],
+      };
+      setMessages(prev => [...prev, demoMsg]);
+      return;
+    }
+
+    setSending(true);
     const tempId = `temp-${Date.now()}`;
     const { data: { user: authUser } } = await supabase.auth.getUser();
     const username = authUser?.user_metadata?.username || user.email.split('@')[0];
@@ -110,7 +130,6 @@ export function useChat(channel: Channel, user: AuthUser) {
         const { message } = await res.json();
         setMessages(prev => prev.map(m => m.id === tempId ? message : m));
       } else {
-        // Rollback
         setMessages(prev => prev.filter(m => m.id !== tempId));
       }
     } catch {
@@ -118,24 +137,26 @@ export function useChat(channel: Channel, user: AuthUser) {
     }
 
     setSending(false);
-  }, [channel.id, user.id, user.email, sending]);
+  }, [channel.id, user.id, user.email, sending, isDemoMode]);
 
   const addReaction = useCallback(async (messageId: string, emoji: string) => {
+    if (isDemoMode) return;
     await fetch(`/api/channels/messages/${messageId}/react`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: user.id, emoji }),
     });
-  }, [user.id]);
+  }, [user.id, isDemoMode]);
 
   const pinMessage = useCallback(async (messageId: string, isPinned: boolean) => {
+    if (isDemoMode) return;
     await fetch(`/api/channels/${channel.id}/pin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messageId, isPinned }),
     });
     fetchMessages();
-  }, [channel.id, fetchMessages]);
+  }, [channel.id, fetchMessages, isDemoMode]);
 
   return { messages, pinnedMessage, loading, sending, sendMessage, addReaction, pinMessage };
 }
