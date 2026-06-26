@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { supabase } from './lib/supabase';
+import { useDemo } from './lib/demoContext';
 import type { AuthUser } from './types';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -9,9 +10,9 @@ import Platform from './pages/Platform';
 export default function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const { isDemoMode, demoUser } = useDemo();
 
   useEffect(() => {
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser({ id: session.user.id, email: session.user.email! });
@@ -19,7 +20,6 @@ export default function App() {
       setLoading(false);
     });
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         setUser({ id: session.user.id, email: session.user.email! });
@@ -31,7 +31,9 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  if (loading) {
+  const effectiveUser = isDemoMode ? demoUser : user;
+
+  if (loading && !isDemoMode) {
     return (
       <div className="h-screen flex items-center justify-center bg-th-bg">
         <div className="flex flex-col items-center gap-4">
@@ -50,11 +52,11 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
-      <Route path="/register" element={user ? <Navigate to="/" replace /> : <Register />} />
+      <Route path="/login" element={effectiveUser ? <Navigate to="/" replace /> : <Login />} />
+      <Route path="/register" element={effectiveUser ? <Navigate to="/" replace /> : <Register />} />
       <Route
         path="/*"
-        element={user ? <Platform user={user} /> : <Navigate to="/login" replace />}
+        element={effectiveUser ? <Platform user={effectiveUser} /> : <Navigate to="/login" replace />}
       />
     </Routes>
   );
