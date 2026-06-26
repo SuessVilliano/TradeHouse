@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import type { Message, Channel, AuthUser } from '../types';
+import type { Message, Channel, AuthUser, SignalData } from '../types';
 
 export function useChat(channel: Channel, user: AuthUser) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -9,6 +9,7 @@ export function useChat(channel: Channel, user: AuthUser) {
   const [sending, setSending] = useState(false);
   const realtimeChannel = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
+  // Fetch initial messages
   const fetchMessages = useCallback(async () => {
     setLoading(true);
     const res = await fetch(`/api/channels/${channel.id}/messages?limit=50`);
@@ -24,6 +25,7 @@ export function useChat(channel: Channel, user: AuthUser) {
   useEffect(() => {
     fetchMessages();
 
+    // Realtime subscription for new messages
     const rt = supabase
       .channel(`chat:${channel.id}`)
       .on('postgres_changes', {
@@ -32,6 +34,7 @@ export function useChat(channel: Channel, user: AuthUser) {
         table: 'messages',
         filter: `channel_id=eq.${channel.id}`,
       }, async (payload) => {
+        // Fetch the full message with joins
         const res = await fetch(`/api/channels/${channel.id}/messages?limit=1`);
         if (res.ok) {
           const { messages: newMsgs } = await res.json();
@@ -39,6 +42,7 @@ export function useChat(channel: Channel, user: AuthUser) {
             const newMsg = newMsgs[newMsgs.length - 1];
             if (newMsg.id === payload.new.id) {
               setMessages(prev => {
+                // Avoid duplicates
                 if (prev.some(m => m.id === newMsg.id)) return prev;
                 return [...prev, newMsg];
               });
@@ -61,50 +65,73 @@ export function useChat(channel: Channel, user: AuthUser) {
         event: '*',
         schema: 'public',
         table: 'reactions',
-      }, () => { fetchMessages(); })
+      }, () => {
+        // Re-fetch messages when reactions change
+        fetchMessages();
+      })
       .subscribe();
 
     realtimeChannel.current = rt;
     return () => { supabase.removeChannel(rt); };
   }, [channel.id, fetchMessages]);
 
-  const sendMessage = useCallback(async (content: string, replyTo?: string, signalData?: object) => {
+  const sendMessage = useCallback(async (content: string, replyTo?: string, signalData?: SignalData) => {
     if (!content.trim() || sending) return;
     setSending(true);
+
+    // Optimistic update
     const tempId = `temp-${Date.now()}`;
     const { data: { user: authUser } } = await supabase.auth.getUser();
     const username = authUser?.user_metadata?.username || user.email.split('@')[0];
+
     const optimistic: Message = {
-      id: tempId, channel_id: channel.id, user_id: user.id, content,
-      reply_to: replyTo || null, is_pinned: false, signal_data: signalData || null,
+      id: tempId,
+      channel_id: channel.id,
+      user_id: user.id,
+      content,
+      reply_to: replyTo || null,
+      is_pinned: false,
+      signal_data: signalData || null,
       created_at: new Date().toISOString(),
-      members: { username, avatar_url: undefined, role: 'member' }, reactions: [],
+      members: { username, avatar_url: undefined, role: 'member' },
+      reactions: [],
     };
+
     setMessages(prev => [...prev, optimistic]);
+
     try {
       const res = await fetch(`/api/channels/${channel.id}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user.id, content, replyTo, signalData }),
       });
+
       if (res.ok) {
         const { message } = await res.json();
         setMessages(prev => prev.map(m => m.id === tempId ? message : m));
-      } else { setMessages(prev => prev.filter(m => m.id !== tempId)); }
-    } catch { setMessages(prev => prev.filter(m => m.id !== tempId)); }
+      } else {
+        // Rollback
+        setMessages(prev => prev.filter(m => m.id !== tempId));
+      }
+    } catch {
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+    }
+
     setSending(false);
   }, [channel.id, user.id, user.email, sending]);
 
   const addReaction = useCallback(async (messageId: string, emoji: string) => {
     await fetch(`/api/channels/messages/${messageId}/react`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: user.id, emoji }),
     });
   }, [user.id]);
 
   const pinMessage = useCallback(async (messageId: string, isPinned: boolean) => {
     await fetch(`/api/channels/${channel.id}/pin`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messageId, isPinned }),
     });
     fetchMessages();
