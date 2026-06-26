@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { TrendingUp, Mail, Lock, AlertCircle } from 'lucide-react';
+import { useDemo } from '../lib/demoContext';
+import { TrendingUp, Mail, Lock, AlertCircle, Zap } from 'lucide-react';
 
 export default function Login() {
   const navigate = useNavigate();
+  const { enterDemo } = useDemo();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -26,6 +28,11 @@ export default function Login() {
     setLoading(false);
   };
 
+  const handleEnterDemo = () => {
+    enterDemo();
+    navigate('/');
+  };
+
   return (
     <div className="min-h-screen bg-th-bg flex items-center justify-center p-4">
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
@@ -41,6 +48,21 @@ export default function Login() {
         <div className="bg-th-sidebar border border-th-border rounded-2xl p-8 shadow-2xl">
           <h1 className="text-xl font-semibold text-th-text mb-2">Welcome back</h1>
           <p className="text-th-muted text-sm mb-6">Sign in to your trading community</p>
+
+          <div className="mb-5 p-3 rounded-xl bg-th-accent/10 border border-th-accent/30 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-th-text text-xs font-semibold">Just browsing?</p>
+              <p className="text-th-muted text-xs">Try the platform instantly — no account needed.</p>
+            </div>
+            <button
+              onClick={handleEnterDemo}
+              className="flex-shrink-0 flex items-center gap-1.5 bg-th-accent hover:bg-th-accent-hover text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <Zap size={12} />
+              Enter as Demo
+            </button>
+          </div>
+
           {magicSent ? (
             <div className="text-center py-8">
               <div className="w-16 h-16 rounded-full bg-th-accent/20 flex items-center justify-center mx-auto mb-4">
