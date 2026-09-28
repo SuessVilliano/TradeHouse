@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, Copy, Shield, ShieldCheck, Swords, Users, Zap } from 'lucide-react';
+import { Check, Copy, Flag, Gauge, Shield, ShieldCheck, Swords, Target, Trophy, Users, Zap } from 'lucide-react';
+import { BATTLE_PRESETS, battleObjective, encodeRule, type BattleFormat } from '../lib/battle-rules';
 
 type BattleMode = '1v1' | '2v2' | '3v3';
 
@@ -31,6 +32,7 @@ function generateRoomId() {
 export default function PracticeBattles() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<BattleMode>('1v1');
+  const [format, setFormat] = useState<BattleFormat>('spotlight');
   const [traderName, setTraderName] = useState('');
   const [dashboardUrl, setDashboardUrl] = useState('');
   const [verifiedAccount, setVerifiedAccount] = useState<VerifiedAccount | null>(null);
@@ -96,6 +98,8 @@ export default function PracticeBattles() {
       joining: joining ? '1' : '0',
     });
     if (dashboardUrl.trim()) params.set('dashboardUrl', dashboardUrl.trim());
+    const ruleParams = encodeRule(BATTLE_PRESETS[format]);
+    ruleParams.forEach((value, key) => params.set(key, value));
     navigate('/battle/' + id.trim().toUpperCase() + '?' + params.toString());
   };
 
@@ -172,6 +176,41 @@ export default function PracticeBattles() {
                   </button>
                 );
               })}
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-white/10 bg-[#0d1320] p-5 sm:p-6">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Battle rules</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              {([
+                ['spotlight', 'Spotlight', Swords],
+                ['sprint', 'Sprint', Gauge],
+                ['target', 'Target', Target],
+                ['prop', 'Prop', ShieldCheck],
+                ['league', 'League', Trophy],
+              ] as const).map(([value, label, Icon]) => {
+                const active = format === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setFormat(value)}
+                    className={active
+                      ? 'rounded-2xl border border-violet-300/50 bg-violet-300/[0.08] p-4 text-violet-200'
+                      : 'rounded-2xl border border-white/10 bg-black/20 p-4 text-slate-500'}
+                  >
+                    <Icon className="mx-auto h-5 w-5" />
+                    <p className="mt-2 text-sm font-black">{label}</p>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-4 rounded-2xl border border-white/[0.07] bg-black/20 p-4">
+              <div className="flex items-center gap-2">
+                <Flag className="h-4 w-4 text-violet-300" />
+                <p className="text-sm font-black">{BATTLE_PRESETS[format].label}</p>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-slate-400">{battleObjective(BATTLE_PRESETS[format])}</p>
             </div>
           </section>
 
