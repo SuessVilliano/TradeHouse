@@ -130,10 +130,10 @@ export default function ArenaHome({ user }: { user: AuthUser }) {
                 Rules & funding <ExternalLink className="ml-2 h-3.5 w-3.5" />
               </a>
               <Link
-                to="/clubhouse"
+                to="/practice"
                 className="rounded-xl bg-white px-4 py-2 text-xs font-black text-slate-950 transition hover:bg-cyan-100"
               >
-                Open clubhouse
+                Launch practice battle
               </Link>
             </div>
           </header>
@@ -154,10 +154,10 @@ export default function ArenaHome({ user }: { user: AuthUser }) {
 
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
-                  to="/clubhouse"
+                  to="/practice"
                   className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-300 to-violet-500 px-5 py-3 text-sm font-black text-[#050816] shadow-[0_10px_40px_rgba(34,211,238,.18)]"
                 >
-                  Enter the arena <ArrowRight className="h-4 w-4" />
+                  Launch a battle <ArrowRight className="h-4 w-4" />
                 </Link>
                 <a
                   href="#leaderboard"
