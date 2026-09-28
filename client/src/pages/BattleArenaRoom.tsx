@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useSearchParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import { RoomAudioRenderer, RoomContext, VideoConference } from '@livekit/components-react';
 import { RoomEvent, type RemoteParticipant } from 'livekit-client';
-import { ArrowLeft, Clock3, Flag, Loader2, ShieldCheck, Swords, Trophy } from 'lucide-react';
+import { ArrowLeft, Clock3, Flag, Loader2, LogOut, ShieldCheck, Swords, Trophy } from 'lucide-react';
 import { useLiveKit } from '../hooks/useLiveKit';
 import type { AuthUser } from '../types';
 import { battleClock, battleObjective, formatClock, parseRule } from '../lib/battle-rules';
-import { getPersistedBattleRoom, type PersistedBattleRoom } from '../lib/room-service';
+import { closePersistedBattleRoom, getPersistedBattleRoom, type PersistedBattleRoom } from '../lib/room-service';
 
 type Entry = { id: string; name: string; dashboardUrl: string; division: string; platform: string };
 type Standing = {
@@ -27,6 +27,7 @@ function upsert(list: Entry[], next: Entry) {
 }
 
 export default function BattleArenaRoom({ user }: { user: AuthUser }) {
+  const navigate = useNavigate();
   const { roomId = '' } = useParams();
   const [params] = useSearchParams();
   const name = params.get('name') || user.email.split('@')[0];
@@ -42,6 +43,8 @@ export default function BattleArenaRoom({ user }: { user: AuthUser }) {
   }] : []);
   const [standings, setStandings] = useState<Standing[]>([]);
   const [feedState, setFeedState] = useState<'idle' | 'loading' | 'fresh' | 'error'>('idle');
+  const [closing, setClosing] = useState(false);
+  const hostToken = typeof window !== 'undefined' ? sessionStorage.getItem('tradehouse-room-host:' + roomId.toUpperCase()) : null;
 
   useEffect(() => {
     let active = true;
@@ -141,6 +144,22 @@ export default function BattleArenaRoom({ user }: { user: AuthUser }) {
     return () => { active = false; if (timer) window.clearTimeout(timer); };
   }, [roster, roomId]);
 
+  const endBattle = async () => {
+    if (!hostToken || closing) return;
+    if (!window.confirm('End this Trade House battle? New traders will no longer be able to join this room.')) return;
+
+    setClosing(true);
+    try {
+      await closePersistedBattleRoom(roomId, hostToken);
+      sessionStorage.removeItem('tradehouse-room-host:' + roomId.toUpperCase());
+      await live.disconnect().catch(() => undefined);
+      navigate('/', { replace: true });
+    } catch (e) {
+      console.error('Could not close battle room', e);
+      setClosing(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-[#050810] text-white">
       <header className="flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#080d18] px-4 py-3 sm:px-6">
@@ -159,6 +178,16 @@ export default function BattleArenaRoom({ user }: { user: AuthUser }) {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {hostToken && (
+            <button
+              type="button"
+              onClick={endBattle}
+              disabled={closing}
+              className="inline-flex items-center gap-1.5 rounded-full border border-rose-300/20 bg-rose-300/[0.07] px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-rose-300 disabled:opacity-50"
+            >
+              <LogOut className="h-3.5 w-3.5" /> {closing ? 'Ending…' : 'End battle'}
+            </button>
+          )}
           <div className="rounded-full border border-violet-300/15 bg-violet-300/[0.06] px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-violet-300">
             {rule.label}
           </div>
