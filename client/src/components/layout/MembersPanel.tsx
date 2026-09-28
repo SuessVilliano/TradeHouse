@@ -12,10 +12,21 @@ export default function MembersPanel() {
 
   useEffect(() => {
     const fetchMembers = async () => {
-      const res = await fetch('/api/auth/members');
-      if (res.ok) { const { members } = await res.json(); setMembers(members || []); }
+      const { data, error } = await supabase
+        .from('members')
+        .select('*')
+        .order('role', { ascending: true })
+        .order('username', { ascending: true });
+
+      if (error) {
+        console.error('[TradeHouse] Failed to load members', error);
+        return;
+      }
+
+      setMembers((data || []) as Member[]);
     };
-    fetchMembers();
+
+    void fetchMembers();
     const channel = supabase.channel('members-online')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'members' }, payload => {
         if (payload.eventType === 'UPDATE') setMembers(prev => prev.map(m => m.user_id === (payload.new as Member).user_id ? { ...m, ...(payload.new as Member) } : m));
