@@ -6,6 +6,7 @@ import type { AuthUser } from './types';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Platform from './pages/Platform';
+import ArenaHome from './pages/ArenaHome';
 
 export default function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -55,9 +56,14 @@ export default function App() {
       <Route path="/login" element={effectiveUser ? <Navigate to="/" replace /> : <Login />} />
       <Route path="/register" element={effectiveUser ? <Navigate to="/" replace /> : <Register />} />
       <Route
-        path="/*"
+        path="/"
+        element={effectiveUser ? <ArenaHome user={effectiveUser} /> : <Navigate to="/login" replace />}
+      />
+      <Route
+        path="/clubhouse/*"
         element={effectiveUser ? <Platform user={effectiveUser} /> : <Navigate to="/login" replace />}
       />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
