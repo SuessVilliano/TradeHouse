@@ -4,9 +4,7 @@ import cors from 'cors';
 import morgan from 'morgan';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import authRoutes from './routes/auth.js';
 import livekitRoutes from './routes/livekit.js';
-import channelRoutes from './routes/channels.js';
 import arenaRoutes from './routes/arena.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -23,9 +21,7 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-app.use('/api/auth', authRoutes);
 app.use('/api/livekit', livekitRoutes);
-app.use('/api/channels', channelRoutes);
 app.use('/api/arena', arenaRoutes);
 
 app.get('/api/health', (req, res) => {
@@ -42,7 +38,6 @@ app.listen(PORT, () => {
   console.log(`🚀 TradeHouse server running on port ${PORT}`);
   console.log(`   ENV: ${process.env.NODE_ENV || 'development'}`);
   console.log(`   LiveKit: ${process.env.LIVEKIT_URL || '(not configured)'}`);
-  console.log(`   Supabase: ${process.env.SUPABASE_URL || '(not configured)'}`);
 });
 
 export default app;
