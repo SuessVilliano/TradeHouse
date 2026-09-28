@@ -11,6 +11,7 @@ import PracticeBattles from './pages/PracticeBattles';
 import BattleArenaRoom from './pages/BattleArenaRoom';
 import ProducerStudio from './pages/ProducerStudio';
 import TradeHouseOverlay from './pages/TradeHouseOverlay';
+import TradeHouseSso from './pages/TradeHouseSso';
 
 export default function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -57,6 +58,7 @@ export default function App() {
 
   return (
     <Routes>
+      <Route path="/sso" element={<TradeHouseSso />} />
       <Route path="/login" element={effectiveUser ? <Navigate to="/" replace /> : <Login />} />
       <Route path="/register" element={effectiveUser ? <Navigate to="/" replace /> : <Register />} />
       <Route
