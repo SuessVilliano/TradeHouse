@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Check, Clipboard, Download, ExternalLink, Plus, Radio, ShieldCheck, Swords, Trash2, Trophy, UserRound, Users } from 'lucide-react';
+import { Check, Clipboard, Download, ExternalLink, Hash, Plus, Radio, ShieldCheck, Swords, Trash2, Trophy, UserRound, Users } from 'lucide-react';
 import { encodeQuickRoster, type QuickBattleEntry } from '../lib/quick-roster';
 import { downloadOBSCollection } from '../lib/tradehouse-obs';
+import { getPersistedBattleRoom } from '../lib/room-service';
 
 type Standing = {
   id: string;
@@ -45,6 +46,8 @@ export default function ProducerStudio() {
   const [copied, setCopied] = useState('');
   const [left, setLeft] = useState('');
   const [right, setRight] = useState('');
+  const [roomCode, setRoomCode] = useState('');
+  const [roomLoading, setRoomLoading] = useState(false);
 
   const cleanEntries = useMemo(() => entries
     .filter((entry) => entry.name.trim() && entry.dashboardUrl.trim())
@@ -95,6 +98,65 @@ export default function ProducerStudio() {
     setEntries((current) => current.filter((entry) => entry.key !== key));
     setStandings([]);
   };
+  const loadRoom = async () => {
+    const code = roomCode.trim().toUpperCase();
+    if (!code) {
+      setError('Enter a Trade House room code.');
+      return;
+    }
+
+    setError('');
+    setRoomLoading(true);
+
+    try {
+      const room = await getPersistedBattleRoom(code);
+      const nextEntries: DraftEntry[] = (room.roster || []).map((entry, index) => ({
+        key: crypto.randomUUID(),
+        id: entry.id || 'seat-' + String(index + 1),
+        name: entry.name || 'Trader ' + String(index + 1),
+        dashboardUrl: entry.dashboardUrl || '',
+        division: 'trading',
+        platform: 'other',
+      }));
+
+      if (!nextEntries.length) {
+        throw new Error('This room does not have any persisted trader proof yet.');
+      }
+
+      const roomSeason = 'Room ' + code;
+      setEntries(nextEntries);
+      setSeason(roomSeason);
+
+      const roster = nextEntries.map(({ id, name, dashboardUrl, division, platform }) => ({
+        id,
+        name,
+        dashboardUrl,
+        division,
+        platform,
+      }));
+
+      const response = await fetch('/api/arena/quick-leaderboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entries: roster, seasonName: roomSeason }),
+      });
+      const data = await response.json();
+
+      if (!response.ok || !Array.isArray(data?.standings)) {
+        throw new Error(data?.error || 'Could not verify the room roster.');
+      }
+
+      const next = data.standings as Standing[];
+      setStandings(next);
+      setLeft(next[0]?.id || '');
+      setRight(next[1]?.id || next[0]?.id || '');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not load that room.');
+    } finally {
+      setRoomLoading(false);
+    }
+  };
+
 
   const verify = async () => {
     setError('');
@@ -148,6 +210,30 @@ export default function ProducerStudio() {
         </header>
 
         <section className="mt-8 rounded-[28px] border border-white/10 bg-[#0a0f1a] p-5 sm:p-7">
+          <div className="mb-6 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.04] p-4">
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-cyan-300">
+              <Hash className="h-4 w-4" /> Load a live battle room
+            </div>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <input
+                value={roomCode}
+                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                placeholder="ROOM ID"
+                maxLength={8}
+                className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-4 py-3 font-mono font-black tracking-[0.16em] text-cyan-200 outline-none focus:border-cyan-300/40"
+              />
+              <button
+                type="button"
+                onClick={loadRoom}
+                disabled={roomLoading}
+                className="rounded-xl bg-cyan-300 px-4 py-3 text-sm font-black text-slate-950 disabled:opacity-50"
+              >
+                {roomLoading ? 'Loading room…' : 'Load room'}
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-slate-500">Pulls the persisted contestants and verified Hybrid Funding proof from the room so the producer does not have to enter the roster twice.</p>
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
             <label>
               <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Battle / season name</span>
