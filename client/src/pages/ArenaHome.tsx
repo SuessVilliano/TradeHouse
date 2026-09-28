@@ -130,6 +130,12 @@ export default function ArenaHome({ user }: { user: AuthUser }) {
                 Rules & funding <ExternalLink className="ml-2 h-3.5 w-3.5" />
               </a>
               <Link
+                to="/producer"
+                className="hidden rounded-xl border border-violet-300/20 bg-violet-300/[0.07] px-3 py-2 text-xs font-black text-violet-200 sm:inline-flex"
+              >
+                Producer Studio
+              </Link>
+              <Link
                 to="/practice"
                 className="rounded-xl bg-white px-4 py-2 text-xs font-black text-slate-950 transition hover:bg-cyan-100"
               >
