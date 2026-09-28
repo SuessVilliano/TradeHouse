@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, Copy, Flag, Gauge, Shield, ShieldCheck, Swords, Target, Trophy, Users, Zap } from 'lucide-react';
 import { BATTLE_PRESETS, battleObjective, encodeRule, type BattleFormat } from '../lib/battle-rules';
+import { createPersistedBattleRoom, joinPersistedBattleRoom } from '../lib/room-service';
+import type { AuthUser } from '../types';
 
 type BattleMode = '1v1' | '2v2' | '3v3';
 
@@ -29,7 +31,7 @@ function generateRoomId() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
-export default function PracticeBattles() {
+export default function PracticeBattles({ user }: { user: AuthUser }) {
   const navigate = useNavigate();
   const [mode, setMode] = useState<BattleMode>('1v1');
   const [format, setFormat] = useState<BattleFormat>('spotlight');
@@ -43,6 +45,7 @@ export default function PracticeBattles() {
   const [joinRoomId, setJoinRoomId] = useState('');
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
+  const [launchBusy, setLaunchBusy] = useState(false);
 
   const dashboardValid = useMemo(() => {
     try {
@@ -87,20 +90,61 @@ export default function PracticeBattles() {
     }
   };
 
-  const launch = (id: string, joining = false) => {
+  const launch = async (id: string, joining = false) => {
     if (!traderName.trim()) { setError('Enter your trader name.'); return; }
     if (!id.trim()) { setError(joining ? 'Enter the Room ID.' : 'Generate a Room ID first.'); return; }
+
     setError('');
-    const params = new URLSearchParams({
-      mode,
-      name: traderName.trim(),
-      side: joining ? 'right' : 'left',
-      joining: joining ? '1' : '0',
-    });
-    if (dashboardUrl.trim()) params.set('dashboardUrl', dashboardUrl.trim());
-    const ruleParams = encodeRule(BATTLE_PRESETS[format]);
-    ruleParams.forEach((value, key) => params.set(key, value));
-    navigate('/battle/' + id.trim().toUpperCase() + '?' + params.toString());
+    setLaunchBusy(true);
+
+    try {
+      const normalizedId = id.trim().toUpperCase();
+      let roomMode = mode;
+      let roomRule = BATTLE_PRESETS[format];
+
+      if (joining) {
+        const room = await joinPersistedBattleRoom({
+          roomId: normalizedId,
+          participant: {
+            id: user.id,
+            name: traderName.trim(),
+            dashboardUrl: dashboardUrl.trim(),
+          },
+        });
+        roomMode = room.mode;
+        roomRule = room.rule;
+      } else {
+        const created = await createPersistedBattleRoom({
+          roomId: normalizedId,
+          hostUserRef: user.id,
+          hostName: traderName.trim(),
+          hostDashboardUrl: dashboardUrl.trim(),
+          mode,
+          rule: BATTLE_PRESETS[format],
+        });
+
+        sessionStorage.setItem('tradehouse-room-host:' + normalizedId, created.hostToken);
+        roomMode = created.room.mode;
+        roomRule = created.room.rule;
+      }
+
+      const params = new URLSearchParams({
+        mode: roomMode,
+        name: traderName.trim(),
+        side: joining ? 'right' : 'left',
+        joining: joining ? '1' : '0',
+      });
+
+      if (dashboardUrl.trim()) params.set('dashboardUrl', dashboardUrl.trim());
+      const ruleParams = encodeRule(roomRule);
+      ruleParams.forEach((value, key) => params.set(key, value));
+
+      navigate('/battle/' + normalizedId + '?' + params.toString());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not open this battle room.');
+    } finally {
+      setLaunchBusy(false);
+    }
   };
 
   const copyRoomId = async () => {
@@ -239,16 +283,16 @@ export default function PracticeBattles() {
                     <Zap className="h-4 w-4" /> Generate room ID
                   </button>
                   {error && <p className="text-center text-sm font-semibold text-rose-300">{error}</p>}
-                  <button type="button" onClick={() => launch(roomId)}
-                    className="w-full rounded-2xl bg-gradient-to-r from-cyan-300 to-violet-500 py-4 text-sm font-black uppercase tracking-[0.15em] text-[#070a12]">Enter the arena</button>
+                  <button type="button" disabled={launchBusy} onClick={() => launch(roomId)}
+                    className="w-full rounded-2xl bg-gradient-to-r from-cyan-300 to-violet-500 py-4 text-sm font-black uppercase tracking-[0.15em] text-[#070a12] disabled:opacity-50">{launchBusy ? 'Creating room…' : 'Enter the arena'}</button>
                 </div>
               ) : (
                 <div className="space-y-4">
                   <input value={joinRoomId} onChange={(e) => setJoinRoomId(e.target.value.toUpperCase())} placeholder="ROOM ID" maxLength={8}
                     className="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-4 text-center font-mono text-xl font-black tracking-[0.28em] text-cyan-300 outline-none focus:border-cyan-300/50" />
                   {error && <p className="text-center text-sm font-semibold text-rose-300">{error}</p>}
-                  <button type="button" onClick={() => launch(joinRoomId, true)}
-                    className="w-full rounded-2xl bg-gradient-to-r from-cyan-300 to-violet-500 py-4 text-sm font-black uppercase tracking-[0.15em] text-[#070a12]">Join battle</button>
+                  <button type="button" disabled={launchBusy} onClick={() => launch(joinRoomId, true)}
+                    className="w-full rounded-2xl bg-gradient-to-r from-cyan-300 to-violet-500 py-4 text-sm font-black uppercase tracking-[0.15em] text-[#070a12] disabled:opacity-50">{launchBusy ? 'Joining room…' : 'Join battle'}</button>
                 </div>
               )}
             </div>
