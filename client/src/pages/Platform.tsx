@@ -9,6 +9,7 @@ import VideoRoom from '../components/video/VideoRoom';
 import LiveStream from '../components/video/LiveStream';
 import { Hash, Mic2, Video, Radio, Menu } from 'lucide-react';
 import { useDemo } from '../lib/demoContext';
+import { supabase } from '../lib/supabase';
 
 interface PlatformProps { user: AuthUser; }
 
@@ -19,48 +20,96 @@ export default function Platform({ user }: PlatformProps) {
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Demo mode: use demo channels directly, skip API
+  const demoActive = import.meta.env.DEV && isDemoMode;
+
+  // Demo mode remains development-only.
   useEffect(() => {
-    if (!isDemoMode) return;
+    if (!demoActive) return;
     setChannels(demoChannels);
     setActiveChannel(prev => prev ?? (demoChannels.find(c => c.type === 'text') || null));
     setLoading(false);
-  }, [isDemoMode, demoChannels]);
+  }, [demoActive, demoChannels]);
 
-  // Real mode: fetch from API
+  // Real mode: channels come directly from the shared Trade Hybrid Club Supabase.
   useEffect(() => {
-    if (isDemoMode) return;
+    if (demoActive) return;
+
+    let active = true;
     setLoading(true);
-    fetch('/api/channels')
-      .then(r => r.json())
-      .then(({ channels }) => {
-        setChannels(channels || []);
-        const firstText = (channels || []).find((c: Channel) => c.type === 'text');
-        if (firstText) setActiveChannel(firstText);
+
+    const loadChannels = async () => {
+      const { data, error } = await supabase
+        .from('channels')
+        .select('*')
+        .order('category', { ascending: true })
+        .order('created_at', { ascending: true });
+
+      if (!active) return;
+
+      if (error) {
+        console.error('[TradeHouse] Failed to load channels', error);
         setLoading(false);
+        return;
+      }
+
+      const next = (data || []) as Channel[];
+      setChannels(next);
+      setActiveChannel(prev => prev || next.find(c => c.type === 'text') || next[0] || null);
+      setLoading(false);
+    };
+
+    void loadChannels();
+
+    const channelFeed = supabase
+      .channel('tradehouse-channels')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'channels',
+      }, () => {
+        void loadChannels();
       })
-      .catch(() => setLoading(false));
-  }, [isDemoMode]);
+      .subscribe();
 
-  useEffect(() => {
-    fetch('/api/auth/online', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: user.id, isOnline: true }),
-    });
-    const handleUnload = () => {
-      navigator.sendBeacon('/api/auth/online', JSON.stringify({ userId: user.id, isOnline: false }));
-    };
-    window.addEventListener('beforeunload', handleUnload);
     return () => {
-      window.removeEventListener('beforeunload', handleUnload);
-      fetch('/api/auth/online', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, isOnline: false }),
-      });
+      active = false;
+      supabase.removeChannel(channelFeed);
     };
-  }, [user.id]);
+  }, [demoActive]);
 
-  const displayChannels = isDemoMode ? demoChannels : channels;
+  // Presence also lives in the shared Club database.
+  useEffect(() => {
+    if (demoActive) return;
+
+    const setPresence = async (isOnline: boolean) => {
+      const { error } = await supabase
+        .from('members')
+        .update({
+          is_online: isOnline,
+          last_seen: new Date().toISOString(),
+        })
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('[TradeHouse] Could not update presence', error);
+      }
+    };
+
+    void setPresence(true);
+
+    const handlePageHide = () => {
+      void setPresence(false);
+    };
+
+    window.addEventListener('pagehide', handlePageHide);
+
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide);
+      void setPresence(false);
+    };
+  }, [user.id, demoActive]);
+
+  const displayChannels = demoActive ? demoChannels : channels;
 
   return (
     <div className="h-screen flex overflow-hidden bg-th-bg">
