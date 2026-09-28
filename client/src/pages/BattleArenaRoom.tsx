@@ -6,6 +6,7 @@ import { ArrowLeft, Clock3, Flag, Loader2, ShieldCheck, Swords, Trophy } from 'l
 import { useLiveKit } from '../hooks/useLiveKit';
 import type { AuthUser } from '../types';
 import { battleClock, battleObjective, formatClock, parseRule } from '../lib/battle-rules';
+import { getPersistedBattleRoom, type PersistedBattleRoom } from '../lib/room-service';
 
 type Entry = { id: string; name: string; dashboardUrl: string; division: string; platform: string };
 type Standing = {
@@ -30,14 +31,37 @@ export default function BattleArenaRoom({ user }: { user: AuthUser }) {
   const [params] = useSearchParams();
   const name = params.get('name') || user.email.split('@')[0];
   const dashboardUrl = params.get('dashboardUrl') || '';
-  const mode = params.get('mode') || '1v1';
-  const rule = useMemo(() => parseRule(params), [params]);
+  const queryMode = params.get('mode') || '1v1';
+  const queryRule = useMemo(() => parseRule(params), [params]);
+  const [persistedRoom, setPersistedRoom] = useState<PersistedBattleRoom | null>(null);
+  const mode = persistedRoom?.mode || queryMode;
+  const rule = persistedRoom?.rule || queryRule;
   const [elapsed, setElapsed] = useState(0);
   const [roster, setRoster] = useState<Entry[]>(() => dashboardUrl ? [{
     id: user.id, name, dashboardUrl, division: 'trading', platform: 'other'
   }] : []);
   const [standings, setStandings] = useState<Standing[]>([]);
   const [feedState, setFeedState] = useState<'idle' | 'loading' | 'fresh' | 'error'>('idle');
+
+  useEffect(() => {
+    let active = true;
+
+    getPersistedBattleRoom(roomId)
+      .then((room) => {
+        if (!active) return;
+        setPersistedRoom(room);
+        if (Array.isArray(room.roster) && room.roster.length) {
+          setRoster(room.roster as Entry[]);
+        }
+      })
+      .catch(() => {
+        // Direct legacy links can still work from their query string.
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [roomId]);
 
   useEffect(() => {
     const startedAt = Date.now();
@@ -129,7 +153,9 @@ export default function BattleArenaRoom({ user }: { user: AuthUser }) {
               <Swords className="h-4 w-4 text-cyan-300" />
               <span className="text-sm font-black uppercase tracking-[0.16em]">Room {roomId.toUpperCase()}</span>
             </div>
-            <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-slate-600">{mode} · verified Hybrid Funding proof</p>
+            <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-slate-600">
+              {mode} · verified Hybrid Funding proof{persistedRoom ? ' · persistent room' : ''}
+            </p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
