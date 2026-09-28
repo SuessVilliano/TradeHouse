@@ -7,6 +7,8 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Platform from './pages/Platform';
 import ArenaHome from './pages/ArenaHome';
+import PracticeBattles from './pages/PracticeBattles';
+import BattleArenaRoom from './pages/BattleArenaRoom';
 
 export default function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -58,6 +60,14 @@ export default function App() {
       <Route
         path="/"
         element={effectiveUser ? <ArenaHome user={effectiveUser} /> : <Navigate to="/login" replace />}
+      />
+      <Route
+        path="/practice"
+        element={effectiveUser ? <PracticeBattles /> : <Navigate to="/login" replace />}
+      />
+      <Route
+        path="/battle/:roomId"
+        element={effectiveUser ? <BattleArenaRoom user={effectiveUser} /> : <Navigate to="/login" replace />}
       />
       <Route
         path="/clubhouse/*"
