@@ -9,6 +9,8 @@ import Platform from './pages/Platform';
 import ArenaHome from './pages/ArenaHome';
 import PracticeBattles from './pages/PracticeBattles';
 import BattleArenaRoom from './pages/BattleArenaRoom';
+import ProducerStudio from './pages/ProducerStudio';
+import TradeHouseOverlay from './pages/TradeHouseOverlay';
 
 export default function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -69,6 +71,11 @@ export default function App() {
         path="/battle/:roomId"
         element={effectiveUser ? <BattleArenaRoom user={effectiveUser} /> : <Navigate to="/login" replace />}
       />
+      <Route
+        path="/producer"
+        element={effectiveUser ? <ProducerStudio /> : <Navigate to="/login" replace />}
+      />
+      <Route path="/overlay/:view" element={<TradeHouseOverlay />} />
       <Route
         path="/clubhouse/*"
         element={effectiveUser ? <Platform user={effectiveUser} /> : <Navigate to="/login" replace />}
