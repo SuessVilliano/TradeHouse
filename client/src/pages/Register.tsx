@@ -19,16 +19,15 @@ export default function Register() {
     if (!/^[a-zA-Z0-9_-]+$/.test(username)) { setError('Username can only contain letters, numbers, underscores, and hyphens'); return; }
     setLoading(true); setError('');
     const { data, error: signUpError } = await supabase.auth.signUp({
-      email, password, options: { data: { username } },
+      email,
+      password,
+      options: {
+        data: { username, display_name: username },
+        emailRedirectTo: window.location.origin + '/login?confirmed=1',
+      },
     });
     if (signUpError) { setError(signUpError.message); setLoading(false); return; }
     if (data.user) {
-      try {
-        await fetch('/api/auth/profile', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: data.user.id, username }),
-        });
-      } catch (_) {}
       if (data.session) { navigate('/'); } else { setSuccess(true); }
     }
     setLoading(false);
@@ -62,8 +61,8 @@ export default function Register() {
           <span className="text-2xl font-bold text-th-text">TradeHouse</span>
         </div>
         <div className="bg-th-sidebar border border-th-border rounded-2xl p-8 shadow-2xl">
-          <h1 className="text-xl font-semibold text-th-text mb-2">Join TradeHouse</h1>
-          <p className="text-th-muted text-sm mb-6">Create your trader account</p>
+          <h1 className="text-xl font-semibold text-th-text mb-2">Join Trade Hybrid</h1>
+          <p className="text-th-muted text-sm mb-6">One Club account unlocks Trade House and the rest of your Trade Hybrid access</p>
           <form onSubmit={handleRegister} className="space-y-4">
             {error && (
               <div className="flex items-center gap-2 text-th-red bg-th-red/10 border border-th-red/20 rounded-lg px-3 py-2 text-sm">
@@ -100,7 +99,7 @@ export default function Register() {
           </form>
         </div>
         <p className="text-center text-th-muted text-sm mt-6">
-          Already have an account?{' '}
+          Already have a Trade Hybrid Club account?{' '}
           <Link to="/login" className="text-th-accent hover:text-th-accent-hover transition-colors font-medium">Sign in</Link>
         </p>
       </div>
