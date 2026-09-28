@@ -65,7 +65,7 @@ export default function App() {
       />
       <Route
         path="/practice"
-        element={effectiveUser ? <PracticeBattles /> : <Navigate to="/login" replace />}
+        element={effectiveUser ? <PracticeBattles user={effectiveUser} /> : <Navigate to="/login" replace />}
       />
       <Route
         path="/battle/:roomId"
