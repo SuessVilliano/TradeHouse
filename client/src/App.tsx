@@ -36,9 +36,9 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const effectiveUser = isDemoMode ? demoUser : user;
+  const effectiveUser = import.meta.env.DEV && isDemoMode ? demoUser : user;
 
-  if (loading && !isDemoMode) {
+  if (loading && !(import.meta.env.DEV && isDemoMode)) {
     return (
       <div className="h-screen flex items-center justify-center bg-th-bg">
         <div className="flex flex-col items-center gap-4">
