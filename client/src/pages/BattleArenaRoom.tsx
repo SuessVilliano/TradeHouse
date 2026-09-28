@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { RoomAudioRenderer, RoomContext, VideoConference } from '@livekit/components-react';
 import { RoomEvent, type RemoteParticipant } from 'livekit-client';
-import { ArrowLeft, Loader2, ShieldCheck, Swords, Trophy } from 'lucide-react';
+import { ArrowLeft, Clock3, Flag, Loader2, ShieldCheck, Swords, Trophy } from 'lucide-react';
 import { useLiveKit } from '../hooks/useLiveKit';
 import type { AuthUser } from '../types';
+import { battleClock, battleObjective, formatClock, parseRule } from '../lib/battle-rules';
 
 type Entry = { id: string; name: string; dashboardUrl: string; division: string; platform: string };
 type Standing = {
@@ -30,11 +31,22 @@ export default function BattleArenaRoom({ user }: { user: AuthUser }) {
   const name = params.get('name') || user.email.split('@')[0];
   const dashboardUrl = params.get('dashboardUrl') || '';
   const mode = params.get('mode') || '1v1';
+  const rule = useMemo(() => parseRule(params), [params]);
+  const [elapsed, setElapsed] = useState(0);
   const [roster, setRoster] = useState<Entry[]>(() => dashboardUrl ? [{
     id: user.id, name, dashboardUrl, division: 'trading', platform: 'other'
   }] : []);
   const [standings, setStandings] = useState<Standing[]>([]);
   const [feedState, setFeedState] = useState<'idle' | 'loading' | 'fresh' | 'error'>('idle');
+
+  useEffect(() => {
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const clock = battleClock(rule, elapsed);
+  const objective = battleObjective(rule);
 
   const live = useLiveKit({
     roomName: 'battle-' + roomId.toUpperCase(),
@@ -120,12 +132,28 @@ export default function BattleArenaRoom({ user }: { user: AuthUser }) {
             <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-slate-600">{mode} · verified Hybrid Funding proof</p>
           </div>
         </div>
-        <div className="rounded-full border border-cyan-300/15 bg-cyan-300/[0.06] px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-cyan-300">
-          {feedState === 'fresh' ? 'Stats live' : feedState === 'error' ? 'Stats retrying' : 'Connecting stats'}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="rounded-full border border-violet-300/15 bg-violet-300/[0.06] px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-violet-300">
+            {rule.label}
+          </div>
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 font-mono text-[10px] font-black text-white">
+            <Clock3 className="h-3.5 w-3.5 text-cyan-300" />
+            {clock.label} · {formatClock(clock.seconds)}
+          </div>
+          <div className="rounded-full border border-cyan-300/15 bg-cyan-300/[0.06] px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-cyan-300">
+            {feedState === 'fresh' ? 'Stats live' : feedState === 'error' ? 'Stats retrying' : 'Connecting stats'}
+          </div>
         </div>
       </header>
 
       <section className="border-b border-white/10 bg-[#070b14] px-4 py-3 sm:px-6">
+        <div className="mx-auto mb-3 flex max-w-7xl items-center gap-2 rounded-2xl border border-white/[0.07] bg-white/[0.025] px-4 py-3">
+          <Flag className="h-4 w-4 flex-shrink-0 text-violet-300" />
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-600">Battle objective</p>
+            <p className="mt-1 text-sm font-bold text-slate-200">{objective}</p>
+          </div>
+        </div>
         {standings.length ? (
           <div className="mx-auto grid max-w-7xl gap-2 sm:grid-cols-2 lg:grid-cols-4">
             {standings.slice(0, 6).map((trader) => (
@@ -163,6 +191,11 @@ export default function BattleArenaRoom({ user }: { user: AuthUser }) {
             </div>
             <h1 className="mt-5 text-2xl font-black">Ready to enter {roomId.toUpperCase()}?</h1>
             <p className="mt-2 text-sm leading-6 text-slate-400">Camera, mic, screen share, and room audio run through the standalone Trade House LiveKit arena.</p>
+            <div className="mt-4 rounded-2xl border border-white/[0.07] bg-black/20 p-4 text-left">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-300">{rule.label}</p>
+              <p className="mt-2 text-sm font-bold text-white">{objective}</p>
+              <p className="mt-2 font-mono text-xs text-cyan-300">{clock.label}: {formatClock(clock.seconds)}</p>
+            </div>
             {live.error && <p className="mt-4 text-sm font-semibold text-rose-300">{live.error}</p>}
             <button type="button" onClick={live.connect} disabled={live.isConnecting}
               className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-300 to-violet-500 px-5 py-3 font-black text-slate-950 disabled:opacity-50">
