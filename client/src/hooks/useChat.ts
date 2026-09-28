@@ -1,7 +1,87 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useDemo } from '../lib/demoContext';
-import type { Message, Channel, AuthUser, SignalData } from '../types';
+import type { Message, Channel, AuthUser, SignalData, Member, Reaction } from '../types';
+
+async function hydrateMessages(channelId: string): Promise<Message[]> {
+  const { data: rawMessages, error } = await supabase
+    .from('messages')
+    .select('*')
+    .eq('channel_id', channelId)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) throw error;
+
+  const rows = [...(rawMessages || [])].reverse();
+  if (!rows.length) return [];
+
+  const messageIds = rows.map((row: any) => row.id);
+  const replyIds = rows.map((row: any) => row.reply_to).filter(Boolean);
+
+  const [reactionResult, replyResult] = await Promise.all([
+    supabase
+      .from('reactions')
+      .select('message_id, emoji, user_id')
+      .in('message_id', messageIds),
+    replyIds.length
+      ? supabase.from('messages').select('id, content, user_id').in('id', replyIds)
+      : Promise.resolve({ data: [], error: null } as any),
+  ]);
+
+  const replies = replyResult.data || [];
+  const userIds = Array.from(new Set([
+    ...rows.map((row: any) => row.user_id),
+    ...replies.map((row: any) => row.user_id),
+  ].filter(Boolean)));
+
+  const memberResult = userIds.length
+    ? await supabase
+        .from('members')
+        .select('user_id, username, avatar_url, role')
+        .in('user_id', userIds)
+    : { data: [], error: null };
+
+  const membersById = new Map<string, Partial<Member>>(
+    (memberResult.data || []).map((member: any) => [member.user_id, member]),
+  );
+
+  const reactionsByMessage = new Map<string, Reaction[]>();
+  for (const reaction of reactionResult.data || []) {
+    const list = reactionsByMessage.get(reaction.message_id) || [];
+    list.push({ emoji: reaction.emoji, user_id: reaction.user_id });
+    reactionsByMessage.set(reaction.message_id, list);
+  }
+
+  const repliesById = new Map<string, any>(
+    replies.map((reply: any) => [reply.id, reply]),
+  );
+
+  return rows.map((row: any) => {
+    const member = membersById.get(row.user_id);
+    const reply = row.reply_to ? repliesById.get(row.reply_to) : null;
+    const replyMember = reply ? membersById.get(reply.user_id) : null;
+
+    return {
+      ...row,
+      members: member
+        ? {
+            username: member.username || 'Trader',
+            avatar_url: member.avatar_url,
+            role: member.role || 'member',
+          }
+        : undefined,
+      reactions: reactionsByMessage.get(row.id) || [],
+      reply_message: reply
+        ? {
+            id: reply.id,
+            content: reply.content,
+            members: replyMember ? { username: replyMember.username || 'Trader' } : undefined,
+          }
+        : null,
+    } as Message;
+  });
+}
 
 export function useChat(channel: Channel, user: AuthUser) {
   const { isDemoMode } = useDemo();
@@ -12,79 +92,64 @@ export function useChat(channel: Channel, user: AuthUser) {
   const realtimeChannel = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const fetchMessages = useCallback(async () => {
-    if (isDemoMode) return;
+    if (import.meta.env.DEV && isDemoMode) return;
+
     setLoading(true);
-    const res = await fetch(`/api/channels/${channel.id}/messages?limit=50`);
-    if (res.ok) {
-      const { messages: msgs } = await res.json();
-      setMessages(msgs || []);
-      const pinned = (msgs || []).find((m: Message) => m.is_pinned);
-      setPinnedMessage(pinned || null);
+    try {
+      const next = await hydrateMessages(channel.id);
+      setMessages(next);
+      setPinnedMessage(next.find((message) => message.is_pinned) || null);
+    } catch (error) {
+      console.error('[TradeHouse chat] Failed to load messages', error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [channel.id, isDemoMode]);
 
   useEffect(() => {
-    if (isDemoMode) {
+    if (import.meta.env.DEV && isDemoMode) {
       setMessages([]);
       setLoading(false);
       return;
     }
 
-    fetchMessages();
+    void fetchMessages();
 
     const rt = supabase
-      .channel(`chat:${channel.id}`)
+      .channel('chat:' + channel.id)
       .on('postgres_changes', {
-        event: 'INSERT',
+        event: '*',
         schema: 'public',
         table: 'messages',
-        filter: `channel_id=eq.${channel.id}`,
-      }, async (payload) => {
-        const res = await fetch(`/api/channels/${channel.id}/messages?limit=1`);
-        if (res.ok) {
-          const { messages: newMsgs } = await res.json();
-          if (newMsgs?.length) {
-            const newMsg = newMsgs[newMsgs.length - 1];
-            if (newMsg.id === payload.new.id) {
-              setMessages(prev => {
-                if (prev.some(m => m.id === newMsg.id)) return prev;
-                return [...prev, newMsg];
-              });
-            }
-          }
-        }
-      })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'messages',
-        filter: `channel_id=eq.${channel.id}`,
-      }, (payload) => {
-        const updated = payload.new as Message;
-        setMessages(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated } : m));
-        if (updated.is_pinned) setPinnedMessage({ ...updated } as Message);
-        else setPinnedMessage(prev => prev?.id === updated.id ? null : prev);
+        filter: 'channel_id=eq.' + channel.id,
+      }, () => {
+        void fetchMessages();
       })
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'reactions',
       }, () => {
-        fetchMessages();
+        void fetchMessages();
       })
       .subscribe();
 
     realtimeChannel.current = rt;
-    return () => { supabase.removeChannel(rt); };
+    return () => {
+      supabase.removeChannel(rt);
+    };
   }, [channel.id, fetchMessages, isDemoMode]);
 
-  const sendMessage = useCallback(async (content: string, replyTo?: string, signalData?: SignalData) => {
+  const sendMessage = useCallback(async (
+    content: string,
+    replyTo?: string,
+    signalData?: SignalData,
+  ) => {
     if (!content.trim() || sending) return;
 
-    if (isDemoMode) {
+    if (import.meta.env.DEV && isDemoMode) {
       const demoMsg: Message = {
-        id: `demo-${Date.now()}`,
+        id: 'demo-' + Date.now(),
         channel_id: channel.id,
         user_id: 'demo-user',
         content,
@@ -95,68 +160,84 @@ export function useChat(channel: Channel, user: AuthUser) {
         members: { username: 'DemoTrader', avatar_url: undefined, role: 'member' },
         reactions: [],
       };
-      setMessages(prev => [...prev, demoMsg]);
+      setMessages((prev) => [...prev, demoMsg]);
       return;
     }
 
     setSending(true);
-    const tempId = `temp-${Date.now()}`;
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    const username = authUser?.user_metadata?.username || user.email.split('@')[0];
-
-    const optimistic: Message = {
-      id: tempId,
-      channel_id: channel.id,
-      user_id: user.id,
-      content,
-      reply_to: replyTo || null,
-      is_pinned: false,
-      signal_data: signalData || null,
-      created_at: new Date().toISOString(),
-      members: { username, avatar_url: undefined, role: 'member' },
-      reactions: [],
-    };
-
-    setMessages(prev => [...prev, optimistic]);
-
     try {
-      const res = await fetch(`/api/channels/${channel.id}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, content, replyTo, signalData }),
+      const { error } = await supabase.from('messages').insert({
+        channel_id: channel.id,
+        user_id: user.id,
+        content: content.trim(),
+        reply_to: replyTo || null,
+        signal_data: signalData || null,
       });
 
-      if (res.ok) {
-        const { message } = await res.json();
-        setMessages(prev => prev.map(m => m.id === tempId ? message : m));
-      } else {
-        setMessages(prev => prev.filter(m => m.id !== tempId));
-      }
-    } catch {
-      setMessages(prev => prev.filter(m => m.id !== tempId));
+      if (error) throw error;
+      await fetchMessages();
+    } catch (error) {
+      console.error('[TradeHouse chat] Failed to send message', error);
+    } finally {
+      setSending(false);
     }
-
-    setSending(false);
-  }, [channel.id, user.id, user.email, sending, isDemoMode]);
+  }, [channel.id, user.id, sending, isDemoMode, fetchMessages]);
 
   const addReaction = useCallback(async (messageId: string, emoji: string) => {
-    if (isDemoMode) return;
-    await fetch(`/api/channels/messages/${messageId}/react`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: user.id, emoji }),
-    });
-  }, [user.id, isDemoMode]);
+    if (import.meta.env.DEV && isDemoMode) return;
+
+    const { data: existing } = await supabase
+      .from('reactions')
+      .select('id')
+      .eq('message_id', messageId)
+      .eq('user_id', user.id)
+      .eq('emoji', emoji)
+      .maybeSingle();
+
+    if (existing?.id) {
+      await supabase.from('reactions').delete().eq('id', existing.id);
+    } else {
+      await supabase.from('reactions').insert({
+        message_id: messageId,
+        user_id: user.id,
+        emoji,
+      });
+    }
+
+    await fetchMessages();
+  }, [user.id, isDemoMode, fetchMessages]);
 
   const pinMessage = useCallback(async (messageId: string, isPinned: boolean) => {
-    if (isDemoMode) return;
-    await fetch(`/api/channels/${channel.id}/pin`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messageId, isPinned }),
-    });
-    fetchMessages();
-  }, [channel.id, fetchMessages, isDemoMode]);
+    if (import.meta.env.DEV && isDemoMode) return;
 
-  return { messages, pinnedMessage, loading, sending, sendMessage, addReaction, pinMessage };
+    if (isPinned) {
+      await supabase
+        .from('messages')
+        .update({ is_pinned: false })
+        .eq('channel_id', channel.id)
+        .eq('user_id', user.id)
+        .eq('is_pinned', true);
+    }
+
+    const { error } = await supabase
+      .from('messages')
+      .update({ is_pinned: isPinned })
+      .eq('id', messageId);
+
+    if (error) {
+      console.error('[TradeHouse chat] Could not pin message', error);
+    }
+
+    await fetchMessages();
+  }, [channel.id, user.id, isDemoMode, fetchMessages]);
+
+  return {
+    messages,
+    pinnedMessage,
+    loading,
+    sending,
+    sendMessage,
+    addReaction,
+    pinMessage,
+  };
 }
