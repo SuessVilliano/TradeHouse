@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.js';
 import livekitRoutes from './routes/livekit.js';
 import channelRoutes from './routes/channels.js';
+import arenaRoutes from './routes/arena.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,6 +26,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/livekit', livekitRoutes);
 app.use('/api/channels', channelRoutes);
+app.use('/api/arena', arenaRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'TradeHouse API' });
