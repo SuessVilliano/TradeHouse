@@ -14,8 +14,32 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(morgan('dev'));
+app.disable('x-powered-by');
+
+const productionOrigins = new Set([
+  'https://battles.tradehybrid.co',
+  'https://tradehouse-91io.onrender.com',
+  'https://pro.tradehybrid.co',
+  'https://tradehybrid.co',
+  'https://www.tradehybrid.co',
+  'https://hybridfunding.co',
+  'https://www.hybridfunding.co',
+]);
+
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? true : ['http://localhost:5173', 'http://localhost:3001'],
+  origin(origin, callback) {
+    if (!origin) return callback(null, true);
+
+    if (process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+
+    if (productionOrigins.has(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error('Origin is not allowed by Trade House CORS.'));
+  },
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
