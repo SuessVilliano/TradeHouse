@@ -23,6 +23,7 @@ import {
   Zap,
 } from 'lucide-react';
 import type { AuthUser } from '../types';
+import { supabase } from '../lib/supabase';
 
 type Standing = {
   id: string;
@@ -78,21 +79,109 @@ function money(value = 0) {
   }).format(value);
 }
 
-function MarketBuddyLauncher() {
+function MarketBuddyLauncher({ user }: { user?: AuthUser }) {
   const [open, setOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
+  const [sending, setSending] = useState(false);
+  const [messages, setMessages] = useState<Array<{ role: 'user'|'ai'; text: string }>>([
+    {
+      role: 'ai',
+      text: 'I’m Market Buddy. Ask me about Trade House, battle prep, your process, or what to do next inside Trade Hybrid.',
+    },
+  ]);
 
-  const ask = () => {
-    const q = prompt.trim();
-    const url = new URL('https://pro.tradehybrid.co/market-buddy');
-    if (q) url.searchParams.set('q', q);
-    window.location.href = url.toString();
+  const send = async (preset?: string) => {
+    const message = String(preset || prompt).trim();
+    if (!message || sending) return;
+
+    if (!user) {
+      window.location.href = CLUB_LAUNCH;
+      return;
+    }
+
+    setMessages((current) => [...current, { role: 'user', text: message }, { role: 'ai', text: '' }]);
+    setPrompt('');
+    setSending(true);
+
+    try {
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data.session?.access_token;
+      if (!accessToken) {
+        window.location.href = CLUB_LAUNCH;
+        return;
+      }
+
+      const response = await fetch('/api/market-buddy/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + accessToken,
+        },
+        body: JSON.stringify({
+          message,
+          context: {
+            surface: 'trade-house',
+            recentMessages: messages.slice(-5).map((item) => ({
+              type: item.role === 'ai' ? 'ai' : 'user',
+              message: item.text,
+            })),
+          },
+        }),
+      });
+
+      if (!response.ok || !response.body) {
+        throw new Error('Market Buddy is unavailable.');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let answer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const chunks = buffer.split('\n');
+        buffer = chunks.pop() || '';
+
+        for (const line of chunks) {
+          if (!line.startsWith('data: ')) continue;
+          const payload = line.slice(6);
+          if (payload === '[DONE]') continue;
+
+          try {
+            const parsed = JSON.parse(payload);
+            answer += String(parsed.chunk || '');
+            setMessages((current) => {
+              const next = [...current];
+              next[next.length - 1] = { role: 'ai', text: answer };
+              return next;
+            });
+          } catch {
+            // Ignore malformed stream fragments.
+          }
+        }
+      }
+    } catch {
+      setMessages((current) => {
+        const next = [...current];
+        next[next.length - 1] = {
+          role: 'ai',
+          text: 'I hit a temporary connection issue. Open full Market Buddy in the Club and I’ll pick it up there.',
+        };
+        return next;
+      });
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
     <>
       {open && (
-        <div className="fixed bottom-24 right-4 z-[70] w-[calc(100vw-2rem)] max-w-sm overflow-hidden rounded-[24px] border border-violet-200 bg-white shadow-[0_24px_80px_rgba(76,29,149,.22)] dark:border-white/10 dark:bg-[#0c1220]">
+        <div className="fixed bottom-24 right-4 z-[70] flex max-h-[72vh] w-[calc(100vw-2rem)] max-w-sm flex-col overflow-hidden rounded-[24px] border border-violet-200 bg-white shadow-[0_24px_80px_rgba(76,29,149,.22)] dark:border-white/10 dark:bg-[#0c1220]">
           <div className="bg-gradient-to-r from-violet-600 via-blue-500 to-cyan-500 p-4 text-white">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -109,36 +198,58 @@ function MarketBuddyLauncher() {
               </button>
             </div>
           </div>
-          <div className="p-4">
-            <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
-              Ask about the Arena, your battle prep, rules, your trading plan, or what to do next. Full conversation continues inside your Trade Hybrid Club account.
-            </p>
-            <div className="mt-4 grid gap-2">
-              {['How do Trade House battles work?', 'Help me prepare for a battle', 'Open my Trade Hybrid game plan'].map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => setPrompt(item)}
-                  className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-left text-xs font-bold text-slate-700 hover:border-violet-200 hover:bg-violet-50 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200"
+
+          <div className="min-h-0 flex-1 overflow-y-auto p-4">
+            <div className="space-y-3">
+              {messages.map((item, index) => (
+                <div
+                  key={index}
+                  className={item.role === 'user'
+                    ? 'ml-8 rounded-2xl rounded-br-md bg-gradient-to-r from-violet-600 to-blue-500 px-3 py-2.5 text-sm text-white'
+                    : 'mr-8 rounded-2xl rounded-bl-md bg-slate-100 px-3 py-2.5 text-sm leading-6 text-slate-700 dark:bg-white/[0.07] dark:text-slate-200'}
                 >
-                  {item}
-                </button>
+                  {item.text || (sending && index === messages.length - 1 ? 'Thinking…' : '')}
+                </div>
               ))}
             </div>
-            <div className="mt-4 flex gap-2">
-              <input
-                value={prompt}
-                onChange={(event) => setPrompt(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') ask();
-                }}
-                placeholder="Ask Market Buddy…"
-                className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-950 outline-none focus:border-violet-400 dark:border-white/10 dark:bg-black/20 dark:text-white"
-              />
-              <button type="button" onClick={ask} className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white">
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
+
+            {messages.length <= 1 && (
+              <div className="mt-4 grid gap-2">
+                {['How do Trade House battles work?', 'Help me prepare for a battle', 'What should I review before I compete?'].map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => void send(item)}
+                    className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-left text-xs font-bold text-slate-700 hover:border-violet-200 hover:bg-violet-50 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200"
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-slate-100 p-3 dark:border-white/10">
+            {user ? (
+              <div className="flex gap-2">
+                <input
+                  value={prompt}
+                  onChange={(event) => setPrompt(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') void send();
+                  }}
+                  placeholder="Ask Market Buddy…"
+                  className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-950 outline-none focus:border-violet-400 dark:border-white/10 dark:bg-black/20 dark:text-white"
+                />
+                <button type="button" disabled={sending} onClick={() => void send()} className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white disabled:opacity-50">
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <a href={CLUB_LAUNCH} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 via-blue-500 to-cyan-500 px-4 py-3 text-sm font-black text-white">
+                Sign in to chat with Market Buddy <ArrowRight className="h-4 w-4" />
+              </a>
+            )}
           </div>
         </div>
       )}
@@ -146,7 +257,7 @@ function MarketBuddyLauncher() {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="fixed bottom-5 right-4 z-[70] inline-flex h-13 items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 via-blue-500 to-cyan-500 px-4 py-3 text-sm font-black text-white shadow-[0_14px_42px_rgba(79,70,229,.28)] transition hover:-translate-y-0.5"
+        className="fixed bottom-5 right-4 z-[70] inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 via-blue-500 to-cyan-500 px-4 py-3 text-sm font-black text-white shadow-[0_14px_42px_rgba(79,70,229,.28)] transition hover:-translate-y-0.5"
       >
         <MessageCircle className="h-5 w-5" />
         <span className="hidden sm:inline">Market Buddy</span>
@@ -597,7 +708,7 @@ export default function ArenaHome({ user }: { user?: AuthUser }) {
         </div>
       </footer>
 
-      <MarketBuddyLauncher />
+      <MarketBuddyLauncher user={user} />
     </main>
   );
 }

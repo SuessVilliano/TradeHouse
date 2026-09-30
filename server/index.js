@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import livekitRoutes from './routes/livekit.js';
 import arenaRoutes from './routes/arena.js';
+import marketBuddyRoutes from './routes/market-buddy.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,6 +48,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use('/api/livekit', livekitRoutes);
 app.use('/api/arena', arenaRoutes);
+app.use('/api/market-buddy', marketBuddyRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'TradeHouse API' });
