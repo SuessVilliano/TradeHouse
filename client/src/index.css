@@ -97,3 +97,42 @@
     scroll-behavior: auto !important;
   }
 }
+
+
+/* Trade House public launch motion */
+@keyframes th-reveal-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes th-float {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(0, -18px, 0) scale(1.03); }
+}
+@keyframes th-float-reverse {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-16px, 14px, 0) scale(.98); }
+}
+@keyframes th-loader {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(230%); }
+}
+@keyframes th-pulse-logo {
+  0%, 100% { transform: scale(1); box-shadow: 0 24px 80px rgba(79,70,229,.22); }
+  50% { transform: scale(1.06); box-shadow: 0 28px 100px rgba(34,211,238,.28); }
+}
+.th-reveal-up { animation: th-reveal-up .72s cubic-bezier(.2,.8,.2,1) both; }
+.th-delay-2 { animation-delay: .14s; }
+.th-float-slow { animation: th-float 9s ease-in-out infinite; }
+.th-float-reverse { animation: th-float-reverse 11s ease-in-out infinite; }
+.th-loader-bar { animation: th-loader 1.15s ease-in-out infinite; }
+.th-pulse-logo { animation: th-pulse-logo 1.7s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .th-reveal-up,
+  .th-float-slow,
+  .th-float-reverse,
+  .th-loader-bar,
+  .th-pulse-logo {
+    animation: none !important;
+  }
+}

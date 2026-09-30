@@ -90,92 +90,47 @@ function MarketBuddyLauncher({ user }: { user?: AuthUser }) {
     },
   ]);
 
+  const answerTradeHouseQuestion = (message: string) => {
+    const q = message.toLowerCase();
+
+    if (q.includes('how') && q.includes('battle')) {
+      return 'Trade House battles use your Trade Hybrid Club identity. Create or join a room, choose the battle format, connect your public Hybrid Funding dashboard when verified proof is required, then use camera/screen share while the leaderboard and broadcast graphics update around the room.';
+    }
+
+    if (q.includes('prepare') || q.includes('before i compete') || q.includes('review')) {
+      return 'Before a battle: confirm your room format and timer, check the risk/rules objective, verify your public proof URL if the event requires it, close distractions, share only the screen you intend to show, and review your game plan before the clock starts.';
+    }
+
+    if (q.includes('proof') || q.includes('dashboard')) {
+      return 'Supported competitions use the trader’s public Hybrid Funding dashboard as the proof source. Trade House adds the room, cameras, screen share, live production, leaderboard and audience layer without replacing that verified record.';
+    }
+
+    if (q.includes('obs') || q.includes('producer') || q.includes('stream')) {
+      return 'Producer Studio can load a room by code, verify the same roster, and generate OBS browser sources for head-to-head, eight-trader wall, leaderboard, scorebug, lower thirds, plus the weekly Trade Hybrid show backdrops.';
+    }
+
+    if (q.includes('practice')) {
+      return 'Practice Battles use the same room system without requiring an official event. They are where traders can test cameras, screen share, rules, pacing and battle formats before a public competition.';
+    }
+
+    return 'I can answer Trade House setup, battle, proof, practice and broadcast questions here. For deeper strategy, Journal context, WHY/goals or screen analysis, open full Market Buddy inside Trade Hybrid Club.';
+  };
+
   const send = async (preset?: string) => {
     const message = String(preset || prompt).trim();
     if (!message || sending) return;
 
-    if (!user) {
-      window.location.href = CLUB_LAUNCH;
-      return;
-    }
-
-    setMessages((current) => [...current, { role: 'user', text: message }, { role: 'ai', text: '' }]);
+    setMessages((current) => [...current, { role: 'user', text: message }]);
     setPrompt('');
     setSending(true);
 
-    try {
-      const { data } = await supabase.auth.getSession();
-      const accessToken = data.session?.access_token;
-      if (!accessToken) {
-        window.location.href = CLUB_LAUNCH;
-        return;
-      }
-
-      const response = await fetch('/api/market-buddy/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + accessToken,
-        },
-        body: JSON.stringify({
-          message,
-          context: {
-            surface: 'trade-house',
-            recentMessages: messages.slice(-5).map((item) => ({
-              type: item.role === 'ai' ? 'ai' : 'user',
-              message: item.text,
-            })),
-          },
-        }),
-      });
-
-      if (!response.ok || !response.body) {
-        throw new Error('Market Buddy is unavailable.');
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let answer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const chunks = buffer.split('\n');
-        buffer = chunks.pop() || '';
-
-        for (const line of chunks) {
-          if (!line.startsWith('data: ')) continue;
-          const payload = line.slice(6);
-          if (payload === '[DONE]') continue;
-
-          try {
-            const parsed = JSON.parse(payload);
-            answer += String(parsed.chunk || '');
-            setMessages((current) => {
-              const next = [...current];
-              next[next.length - 1] = { role: 'ai', text: answer };
-              return next;
-            });
-          } catch {
-            // Ignore malformed stream fragments.
-          }
-        }
-      }
-    } catch {
-      setMessages((current) => {
-        const next = [...current];
-        next[next.length - 1] = {
-          role: 'ai',
-          text: 'I hit a temporary connection issue. Open full Market Buddy in the Club and I’ll pick it up there.',
-        };
-        return next;
-      });
-    } finally {
+    window.setTimeout(() => {
+      setMessages((current) => [
+        ...current,
+        { role: 'ai', text: answerTradeHouseQuestion(message) },
+      ]);
       setSending(false);
-    }
+    }, 420);
   };
 
   return (
@@ -230,26 +185,23 @@ function MarketBuddyLauncher({ user }: { user?: AuthUser }) {
           </div>
 
           <div className="border-t border-slate-100 p-3 dark:border-white/10">
-            {user ? (
-              <div className="flex gap-2">
-                <input
-                  value={prompt}
-                  onChange={(event) => setPrompt(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') void send();
-                  }}
-                  placeholder="Ask Market Buddy…"
-                  className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-950 outline-none focus:border-violet-400 dark:border-white/10 dark:bg-black/20 dark:text-white"
-                />
-                <button type="button" disabled={sending} onClick={() => void send()} className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white disabled:opacity-50">
-                  <ArrowRight className="h-4 w-4" />
-                </button>
-              </div>
-            ) : (
-              <a href={CLUB_LAUNCH} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 via-blue-500 to-cyan-500 px-4 py-3 text-sm font-black text-white">
-                Sign in to chat with Market Buddy <ArrowRight className="h-4 w-4" />
-              </a>
-            )}
+            <div className="flex gap-2">
+              <input
+                value={prompt}
+                onChange={(event) => setPrompt(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') void send();
+                }}
+                placeholder="Ask about Trade House…"
+                className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-950 outline-none focus:border-violet-400 dark:border-white/10 dark:bg-black/20 dark:text-white"
+              />
+              <button type="button" disabled={sending} onClick={() => void send()} className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white disabled:opacity-50">
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+            <a href={user ? 'https://pro.tradehybrid.co/market-buddy' : CLUB_LAUNCH} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-violet-200 px-3 py-2 text-xs font-black text-violet-700 dark:border-white/10 dark:text-violet-200">
+              Open full Market Buddy <ExternalLink className="h-3.5 w-3.5" />
+            </a>
           </div>
         </div>
       )}

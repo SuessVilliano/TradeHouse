@@ -10,6 +10,8 @@ export function buildOBSCollection(
     ['01 · Head to head', 'duel'],
     ['02 · Eight traders', 'grid'],
     ['03 · Leaderboard', 'leaderboard'],
+    ['04 · Leader scorebug', 'scorebug'],
+    ['05 · Trader lower third', 'lowerthird'],
   ] as const;
   const sources: object[] = [];
 
