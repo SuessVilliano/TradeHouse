@@ -4,11 +4,9 @@ import {
   ArrowRight,
   BarChart3,
   Bot,
-  Broadcast,
   CalendarDays,
   CheckCircle2,
   ChevronRight,
-  CirclePlay,
   ExternalLink,
   MessageCircle,
   Moon,
@@ -528,7 +526,7 @@ export default function ArenaHome({ user }: { user?: AuthUser }) {
         <div className="mx-auto grid max-w-7xl gap-10 px-5 sm:px-8 lg:grid-cols-2 lg:items-center">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.18em] text-cyan-200">
-              <Broadcast className="h-3.5 w-3.5" /> Producer + OBS
+              <Radio className="h-3.5 w-3.5" /> Producer + OBS
             </div>
             <h2 className="mt-5 text-4xl font-black tracking-[-0.04em] sm:text-5xl">Turn every battle into a show.</h2>
             <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
