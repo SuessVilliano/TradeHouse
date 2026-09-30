@@ -52,7 +52,7 @@ const money = (value = 0) =>
     maximumFractionDigits: 0,
   }).format(value);
 
-export default function ArenaHome({ user }: { user: AuthUser }) {
+export default function ArenaHome({ user }: { user?: AuthUser }) {
   const [board, setBoard] = useState<LeaderboardPayload | null>(null);
   const [rooms, setRooms] = useState<LiveKitRoom[]>([]);
   const [boardState, setBoardState] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -135,12 +135,21 @@ export default function ArenaHome({ user }: { user: AuthUser }) {
               >
                 Producer Studio
               </Link>
-              <Link
-                to="/practice"
-                className="rounded-xl bg-white px-4 py-2 text-xs font-black text-slate-950 transition hover:bg-cyan-100"
-              >
-                Launch practice battle
-              </Link>
+              {user ? (
+                <Link
+                  to="/practice"
+                  className="rounded-xl bg-white px-4 py-2 text-xs font-black text-slate-950 transition hover:bg-cyan-100"
+                >
+                  Launch practice battle
+                </Link>
+              ) : (
+                <a
+                  href="https://pro.tradehybrid.co/launch/tradehouse"
+                  className="rounded-xl bg-white px-4 py-2 text-xs font-black text-slate-950 transition hover:bg-cyan-100"
+                >
+                  Enter with Trade Hybrid Club
+                </a>
+              )}
             </div>
           </header>
 
@@ -159,12 +168,21 @@ export default function ArenaHome({ user }: { user: AuthUser }) {
               </p>
 
               <div className="mt-8 flex flex-wrap gap-3">
-                <Link
-                  to="/practice"
-                  className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-300 to-violet-500 px-5 py-3 text-sm font-black text-[#050816] shadow-[0_10px_40px_rgba(34,211,238,.18)]"
-                >
-                  Launch a battle <ArrowRight className="h-4 w-4" />
-                </Link>
+                {user ? (
+                  <Link
+                    to="/practice"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-300 to-violet-500 px-5 py-3 text-sm font-black text-[#050816] shadow-[0_10px_40px_rgba(34,211,238,.18)]"
+                  >
+                    Launch a battle <ArrowRight className="h-4 w-4" />
+                  </Link>
+                ) : (
+                  <a
+                    href="https://pro.tradehybrid.co/launch/tradehouse"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-300 to-violet-500 px-5 py-3 text-sm font-black text-[#050816] shadow-[0_10px_40px_rgba(34,211,238,.18)]"
+                  >
+                    Enter the Arena <ArrowRight className="h-4 w-4" />
+                  </a>
+                )}
                 <a
                   href="#leaderboard"
                   className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/[0.04] px-5 py-3 text-sm font-black text-white"
@@ -175,27 +193,45 @@ export default function ArenaHome({ user }: { user: AuthUser }) {
             </div>
 
             <div className="rounded-[28px] border border-white/10 bg-white/[0.045] p-5 backdrop-blur-xl">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-300">Your arena</p>
-                  <p className="mt-1 text-lg font-black">{user.email}</p>
-                </div>
-                <div className="rounded-full border border-emerald-300/20 bg-emerald-300/[0.08] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-300">
-                  Connected
-                </div>
-              </div>
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <Link to="/clubhouse" className="rounded-2xl border border-white/10 bg-[#0b1020] p-4 transition hover:border-cyan-300/30">
-                  <Video className="h-5 w-5 text-cyan-300" />
-                  <p className="mt-6 font-black">Battle rooms</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">Video, screen share, chat and trader comms.</p>
-                </Link>
-                <Link to="/clubhouse" className="rounded-2xl border border-white/10 bg-[#0b1020] p-4 transition hover:border-violet-300/30">
-                  <Radio className="h-5 w-5 text-violet-300" />
-                  <p className="mt-6 font-black">Broadcast</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">Browser or OBS output through LiveKit.</p>
-                </Link>
-              </div>
+              {user ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-300">Your arena</p>
+                      <p className="mt-1 text-lg font-black">{user.email}</p>
+                    </div>
+                    <div className="rounded-full border border-emerald-300/20 bg-emerald-300/[0.08] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-300">
+                      Connected
+                    </div>
+                  </div>
+                  <div className="mt-5 grid grid-cols-2 gap-3">
+                    <Link to="/clubhouse" className="rounded-2xl border border-white/10 bg-[#0b1020] p-4 transition hover:border-cyan-300/30">
+                      <Video className="h-5 w-5 text-cyan-300" />
+                      <p className="mt-6 font-black">Battle rooms</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">Video, screen share, chat and trader comms.</p>
+                    </Link>
+                    <Link to="/producer" className="rounded-2xl border border-white/10 bg-[#0b1020] p-4 transition hover:border-violet-300/30">
+                      <Radio className="h-5 w-5 text-violet-300" />
+                      <p className="mt-6 font-black">Producer Studio</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">OBS overlays, broadcast graphics and live production.</p>
+                    </Link>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-300">Trade House access</p>
+                  <h2 className="mt-2 text-2xl font-black">Watch publicly. Compete with your Club identity.</h2>
+                  <p className="mt-3 text-sm leading-6 text-slate-400">
+                    Leaderboards and live battle activity are public. Creating rooms, joining battles, video, chat, and producer tools use your Trade Hybrid Club account.
+                  </p>
+                  <a
+                    href="https://pro.tradehybrid.co/launch/tradehouse"
+                    className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-black text-slate-950"
+                  >
+                    Continue with Trade Hybrid Club <ArrowRight className="h-4 w-4" />
+                  </a>
+                </>
+              )}
             </div>
           </section>
 
@@ -300,9 +336,15 @@ export default function ArenaHome({ user }: { user: AuthUser }) {
               )}
             </div>
 
-            <Link to="/clubhouse" className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-black">
-              Open room directory <ArrowRight className="h-4 w-4" />
-            </Link>
+            {user ? (
+              <Link to="/clubhouse" className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-black">
+                Open room directory <ArrowRight className="h-4 w-4" />
+              </Link>
+            ) : (
+              <a href="https://pro.tradehybrid.co/launch/tradehouse" className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-black">
+                Sign in to enter rooms <ArrowRight className="h-4 w-4" />
+              </a>
+            )}
           </div>
 
           <div className="rounded-[28px] border border-cyan-300/15 bg-gradient-to-br from-cyan-300/[0.08] to-violet-500/[0.08] p-5 sm:p-6">

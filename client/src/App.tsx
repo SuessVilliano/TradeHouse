@@ -61,10 +61,7 @@ export default function App() {
       <Route path="/sso" element={<TradeHouseSso />} />
       <Route path="/login" element={effectiveUser ? <Navigate to="/" replace /> : <Login />} />
       <Route path="/register" element={effectiveUser ? <Navigate to="/" replace /> : <Register />} />
-      <Route
-        path="/"
-        element={effectiveUser ? <ArenaHome user={effectiveUser} /> : <Navigate to="/login" replace />}
-      />
+      <Route path="/" element={<ArenaHome user={effectiveUser || undefined} />} />
       <Route
         path="/practice"
         element={effectiveUser ? <PracticeBattles user={effectiveUser} /> : <Navigate to="/login" replace />}
