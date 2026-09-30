@@ -4,6 +4,9 @@ services:
     env: node
     buildCommand: npm install && npm run build
     startCommand: npm start
+    healthCheckPath: /api/health
+    domains:
+      - battles.tradehybrid.co
     envVars:
       - key: LIVEKIT_API_KEY
         sync: false
