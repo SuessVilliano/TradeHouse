@@ -360,7 +360,7 @@ export default function ArenaHome({ user }: { user?: AuthUser }) {
                   {[
                     ['Practice', Swords],
                     ['Live rooms', Video],
-                    ['Broadcast', Broadcast],
+                    ['Broadcast', Radio],
                   ].map(([label, Icon]: any) => (
                     <div key={label} className="rounded-xl bg-slate-50 p-3 text-center dark:bg-white/[0.04]">
                       <Icon className="mx-auto h-4 w-4 text-violet-600 dark:text-violet-300" />
@@ -385,7 +385,7 @@ export default function ArenaHome({ user }: { user?: AuthUser }) {
             ['01', 'Enter with Club', 'Use one Trade Hybrid identity. No separate Trade House account.', Users],
             ['02', 'Create or join', 'Launch 1v1, 2v2 or 3v3 practice and competition rooms.', Swords],
             ['03', 'Verify the proof', 'Official competition stats can pull from public Hybrid Funding dashboards.', ShieldCheck],
-            ['04', 'Turn it into content', 'Cameras, screen share, scorebugs, leaderboards and OBS-ready production.', Broadcast],
+            ['04', 'Turn it into content', 'Cameras, screen share, scorebugs, leaderboards and OBS-ready production.', Radio],
           ].map(([number, title, text, Icon]: any) => (
             <article key={number} className="group rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-violet-200 hover:shadow-xl dark:border-white/10 dark:bg-white/[0.035]">
               <div className="flex items-center justify-between">
