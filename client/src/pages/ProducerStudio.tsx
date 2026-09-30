@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Check, Clipboard, Download, ExternalLink, Hash, Plus, Radio, ShieldCheck, Swords, Trash2, Trophy, UserRound, Users } from 'lucide-react';
 import { encodeQuickRoster, type QuickBattleEntry } from '../lib/quick-roster';
-import { downloadOBSCollection } from '../lib/tradehouse-obs';
+import { downloadOBSCollection, downloadTradeHybridShowCollection, TRADE_HYBRID_SHOWS } from '../lib/tradehouse-obs';
 import { getPersistedBattleRoom } from '../lib/room-service';
 
 type Standing = {
@@ -208,6 +208,32 @@ export default function ProducerStudio() {
           </div>
           <a href="/clubhouse" className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-black text-slate-200">Open clubhouse</a>
         </header>
+
+        <section className="mt-8 rounded-[28px] border border-violet-300/15 bg-gradient-to-br from-violet-500/[0.08] to-cyan-400/[0.04] p-5 sm:p-7">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-300">Weekly show scene pack</p>
+              <h2 className="mt-2 text-2xl font-black">Trade Hybrid TV + OBS backdrops</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">Five branded 1920×1080 browser-source scenes for the recurring Trade Hybrid programming schedule.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => downloadTradeHybridShowCollection(base)}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-cyan-400 px-4 py-2.5 text-sm font-black text-slate-950"
+            >
+              <Download className="h-4 w-4" /> Download weekly OBS scenes
+            </button>
+          </div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {TRADE_HYBRID_SHOWS.map(([name, slug]) => (
+              <a key={slug} href={'/show/' + slug} target="_blank" rel="noreferrer" className="rounded-2xl border border-white/10 bg-black/20 p-4 transition hover:border-cyan-300/30">
+                <Radio className="h-4 w-4 text-cyan-300" />
+                <p className="mt-4 text-sm font-black">{name}</p>
+                <p className="mt-2 text-[10px] uppercase tracking-wider text-slate-600">Preview backdrop</p>
+              </a>
+            ))}
+          </div>
+        </section>
 
         <section className="mt-8 rounded-[28px] border border-white/10 bg-[#0a0f1a] p-5 sm:p-7">
           <div className="mb-6 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.04] p-4">

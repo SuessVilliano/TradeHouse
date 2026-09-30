@@ -12,6 +12,7 @@ import BattleArenaRoom from './pages/BattleArenaRoom';
 import ProducerStudio from './pages/ProducerStudio';
 import TradeHouseOverlay from './pages/TradeHouseOverlay';
 import TradeHouseSso from './pages/TradeHouseSso';
+import WeeklyShowScene from './pages/WeeklyShowScene';
 
 export default function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -75,6 +76,7 @@ export default function App() {
         element={effectiveUser ? <ProducerStudio /> : <Navigate to="/login" replace />}
       />
       <Route path="/overlay/:view" element={<TradeHouseOverlay />} />
+      <Route path="/show/:slug" element={<WeeklyShowScene />} />
       <Route
         path="/clubhouse/*"
         element={effectiveUser ? <Platform user={effectiveUser} /> : <Navigate to="/login" replace />}
