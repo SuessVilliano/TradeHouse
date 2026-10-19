@@ -78,7 +78,23 @@ export default function PracticeBattles({ user }: { user: AuthUser }) {
           seasonName: 'Practice Battle',
         }),
       });
-      const data = await response.json();
+      const contentType = response.headers.get('content-type') || '';
+      const responseText = await response.text();
+      let data: any;
+      if (contentType.includes('application/json')) {
+        try {
+          data = JSON.parse(responseText);
+        } catch {
+          throw new Error('Battle verification service returned an invalid response. Please retry shortly.');
+        }
+      } else {
+        throw new Error(response.ok
+          ? 'Battle verification service returned an unexpected response. Please retry shortly.'
+          : 'Battle verification service is temporarily unavailable. Please retry shortly.');
+      }
+      if (!response.ok) {
+        throw new Error(typeof data?.error === 'string' ? data.error : 'Dashboard verification failed. Please retry.');
+      }
       const account = data?.standings?.[0] as VerifiedAccount | undefined;
       if (!response.ok || !account?.verified) throw new Error('Dashboard unavailable. Check the public link and try again.');
       setVerifiedAccount(account);
